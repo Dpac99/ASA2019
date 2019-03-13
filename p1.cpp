@@ -4,52 +4,24 @@
 #include<stack>
 
 #define UNVISITED -1
+#define NIL -1
 #define MIN(a, b) (a<b? a : b)
 
 static int d_time = 0;
 
-
 using namespace std;
-
-class SCC{
-private:
-    int _id = UNVISITED;
-    vector<int> _nodes;
-public:
-    void addNode(int n){
-        if(n > _id){
-            _id = n;
-        }
-        _nodes.push_back(n);
-    }
-
-    int size(){
-        return _nodes.size();
-    }
-
-    int id(){
-        return _id;
-    }
-
-    void print(){
-        cout << "SCC id:" << _id << endl;
-        for(int i =0; i<_nodes.size(); i++){
-            cout << _nodes.at(i) << endl;
-        }
-    }
-
-};
 
 class Graph{
 private:
     vector<vector<int>> _matrix;
     int _n_nodes;
     int _n_networks;
-    vector<SCC*> _networks;
+    vector<int> _networks;
+    vector<int> _aps;
 public:
     Graph(int n){
         _n_nodes = n;
-        _matrix = vector<vector<int>>(n+1);
+        _matrix = vector<vector<int>>(_n_nodes);
     }
 
     void insert_edge(int v1, int v2){
@@ -57,22 +29,24 @@ public:
         _matrix.at(v2).push_back(v1);
     }
 
-    void visit(int* d, int* low, bool* on_stack, stack<int> *visited, int pos);
+    void visit(int* d, int* low, bool* on_stack, stack<int> *visited, int* parent, int pos);
 
     void tarjan_scc(){
         int *d = new int[_n_nodes];
         int *low = new int[_n_nodes];
+        int *parent = new int[_n_nodes];
         bool *on_stack = new bool[_n_nodes];
         stack<int> *visited = new stack<int>();
 
         for(int i =0; i< _n_nodes; i++){
             d[i]=UNVISITED;
             low[i] = UNVISITED;
+            parent[i] = NIL;
             on_stack[i] = false;
         }
         for(int i=0; i<_n_nodes; i++){
             if(d[i] == UNVISITED){
-                visit(d, low, on_stack, visited, i);
+                visit(d, low, on_stack, visited, parent, i);
             }
         }
     }
@@ -81,30 +55,45 @@ public:
     void print_graph(){
         cout << _n_nodes << endl;
         for(int i =0; i< _n_nodes; i++){
-            cout << i << " : ";
+            cout << i +1<< " : ";
             for (int j=0; j< _matrix.at(i).size(); j++){
-                cout << _matrix.at(i).at(j) << "  ";
+                cout << _matrix.at(i).at(j) +1 << "  ";
             }
             cout << endl;
         }
         cout <<endl; 
+        cout<<"Networks: "<<endl;
         for(int i =0; i<_networks.size(); i++){
-                _networks.at(i)->print();
+            cout << _networks.at(i)  + 1<< endl;
+        }
+        cout << "Aps: "<< endl;
+        for(int i =0; i<_aps.size(); i++){
+                cout << _aps.at(i) + 1<< endl;
             }
     }
 
     /* DEBUG END */
 };
 
-void Graph::visit(int* d, int* low, bool* on_stack, stack<int> *visited, int pos){
+void Graph::visit(int* d, int* low, bool* on_stack, stack<int> *visited, int *parent, int pos){
+    int children = 0;
     d[pos] = low[pos] = d_time++;
     visited->push(pos);
     on_stack[pos] = true;
     for(int i = 0; i< _matrix.at(pos).size(); i++){
         int adj = _matrix.at(pos).at(i);
-        if(d[i] == UNVISITED){
-            visit(d, low, on_stack, visited, adj);
+        if(d[adj] == UNVISITED){
+            children++;
+            parent[adj] = pos;
+            visit(d, low, on_stack, visited, parent,adj);
             low[pos] = MIN(low[pos], low[adj]);
+
+            if(parent[pos] == NIL && children >=2){
+                _aps.push_back(pos);
+            }
+            else if (parent[pos] != NIL && low[adj] >= d[pos]){
+                _aps.push_back(pos);
+            }
         }
         else if(on_stack[adj]){
             low[pos] = MIN(low[pos], d[adj]);
@@ -112,18 +101,17 @@ void Graph::visit(int* d, int* low, bool* on_stack, stack<int> *visited, int pos
     }
     int curr;
     if(low[pos] == d[pos]){
-        SCC* scc = new SCC();
+        int max = NIL;
         while(visited->top() != pos){
             curr = visited->top();
-            cout << curr << endl ;
             on_stack[curr] = false;
-            scc->addNode(curr);
+            if(curr > max){max = curr;}
             visited->pop();
         }
         on_stack[pos] = false;
-        scc->addNode(pos);
+        if(pos>max){max=pos;}
         visited->pop();
-        _networks.push_back(scc);
+        _networks.push_back(max);
     }
 }
 
