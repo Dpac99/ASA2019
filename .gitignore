@@ -1,2 +1,4 @@
-test.txt
+*.txt
 p1
+student-tests/
+*.sh
