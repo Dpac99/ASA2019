@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
+#include <queue>
 
 using namespace std;
 
@@ -67,7 +68,7 @@ private:
     vector<vector<Edge*>> _conections;
     int* heights;
     int* excess;
-    vector<int> q;
+    queue<int> q;
     int * current;
     bool* in_t_cut;
     vector<int*> t_cut_E;
@@ -95,27 +96,12 @@ public:
         in_t_cut = new bool[_v];
         in_t_cut[0] = false;
         in_t_cut[1] = false;
-        q = vector<int>();
+        q = queue<int>();
         _e =e + 2*sup + sta ;
         _conections = vector<vector<Edge*>>(_v);
         for(int i=_v - 1; i>1; i--){
-            q.push_back(i);
             heights[i] = 0;
             excess[i] = 0;
-            d[i]=-1;
-            f[i]=-1;
-            in_t_cut[i] = false;
-        }
-    }
-
-    Graph(int v, int e){
-        _v = v;
-        _e = e;
-        _conections = vector<vector<Edge*>>(_v);
-        d= new int[_v];
-        f = new int[_v];
-        in_t_cut = new bool[_v];
-        for(int i=0; i<_v; i++){
             d[i]=-1;
             f[i]=-1;
             in_t_cut[i] = false;
@@ -159,6 +145,7 @@ public:
         Edge *v;
         for(int i = 0; i<size; i++){
             v = _conections.at(0).at(i);
+            q.push(v->getId());
             excess[0] -= v->getCapacity();
             excess[v->getId()] = v->getCapacity();
             _conections.at(v->getId()).at(0)->setCapacity(v->getCapacity());
@@ -199,6 +186,9 @@ public:
         Edge* revE = _conections.at(e->getId()).at(e->getReverse());
         e->setCapacity( e->getCapacity() - total);
         revE->setCapacity(revE->getCapacity() + total);
+        if(excess[e->getId()] == 0 && e->getId() != 1 && e->getId() != 0){
+            q.push(e->getId());
+        }
         excess[v]-=total;
         excess[e->getId()]+=total;
     }
@@ -223,68 +213,16 @@ public:
         }
     }
 
-    void moveToFront(int v){
-        long unsigned int i;
-        for(i=0; q.at(i) != v; i++);
-        q.erase(q.begin() + i);
-        q.push_back(v);
-    }
-
     void relabelToFront(){
-        int v, oldh;
-        for(int i = q.size() - 1; i>=0; i--){
-            v = q.at(i);
-            oldh = heights[v];
+        int v;
+        while(!q.empty()){
+            v = q.front();
             discharge(v);
-            if(heights[v] > oldh){
-                moveToFront(v);
-                i=q.size()-1;
-            }
+            q.pop();
         }
     }
 
-    void printGraph(){
-        for (int i=0; i<_v; i++){
-            for(long unsigned int j=0; j<_conections.at(i).size(); j++){
-                printf("From %d (excess = %d, height = %d) to %d (excess = %d, height = %d) with capacity %d\n", i,excess[i], heights[i], _conections.at(i).at(j)->getId(),excess[_conections.at(i).at(j)->getId()], heights[_conections.at(i).at(j)->getId()], _conections.at(i).at(j)->getCapacity());
-            }
-        }
-    }
-
-    void printList(){
-        for(int i=0; i<_v; i++){
-            printf("%d | ", i);
-            for(long unsigned int j = 0; j<_conections.at(i).size(); j++){
-                printf("{ %d %d %d} ", _conections.at(i).at(j)->getId(),_conections.at(i).at(j)->getCapacity(), _conections.at(i).at(j)->getReverse());
-            }
-            printf("\n");
-        }
-    }
-
-    void printMinCut(){
-        printf("Cut vertixes: {");
-        for(int i=0; i<_v; i++){
-            if(in_t_cut[i]){
-                printf("%d, ", i);
-            }
-        }
-    }
-
-    Graph* invertGraph(){
-        Graph* g = new Graph(_v, _e);
-        for(int i=0; i<_v; i++){
-            int size = _conections.at(i).size();
-            for(int j=0; j<size; j++){
-                if(_conections.at(i).at(j)->getCapacity() > 0){
-                    g->addConnection(j,i,1);
-                }
-            }
-        }
-        return g;
-    }
-
-    void findMinCut(int v){ // vector<Edge*> t_cut
-        //printf("{%d}", v);
+    void findMinCut(int v){
         d[v] = _time++;
         in_t_cut[v] = true;
         int size = _conections.at(v).size();
@@ -320,27 +258,6 @@ public:
     }
 
     void printResult(){
-        /*printf("92|");
-        for(int i=0; i<_conections.at(92).size(); i++){
-            printf("{%d}", _conections.at(92).at(i)->getId());
-        }
-        printf("\n");
-        printf("93|");
-        for(int i=0; i<_conections.at(93).size(); i++){
-            printf("{%d}", _conections.at(93).at(i)->getId());
-        }
-        printf("\n");
-        printf("110|");
-        for(int i=0; i<_conections.at(110).size(); i++){
-            printf("{%d}", _conections.at(110).at(i)->getId());
-        }
-        printf("\n");
-        printf("111|");
-        for(int i=0; i<_conections.at(111).size(); i++){
-            printf("{%d}", _conections.at(111).at(i)->getId());
-        }
-        printf("\n");
-        printf("92: %d, 93: %d, 110: %d, 111: %d\n", in_t_cut[92], in_t_cut[93], in_t_cut[110], in_t_cut[111]);*/
         sort(t_cut_V.begin(), t_cut_V.end());
         sort(t_cut_E.begin(), t_cut_E.end(), compareE);
         printf("%d\n", excess[1]);
@@ -400,19 +317,10 @@ Graph* parseInput(){
 int main(){
     Graph* g = parseInput();
     g->initializeSource();
-    //g->printGraph();
-    //g->printList();
-    //printf("\n\n");
     g->relabelToFront();
-    //g->printGraph();
-    //g->printList();
-    //printf("cut|");
     g->findMinCut(1);
     g->filterEdges();
-    //printf("\n");
-    //g->printMinCut();
     g->printResult();
-    //g->printList();
 }
 
 
